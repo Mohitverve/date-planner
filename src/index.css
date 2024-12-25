@@ -1,0 +1,20 @@
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: #ffe6f0;
+  color: #333;
+}
+
+.ant-btn-primary {
+  background-color: #ff6699;
+  border-color: #ff6699;
+}
+
+.ant-btn-primary:hover {
+  background-color: #ff3366;
+  border-color: #ff3366;
+}
+
+h2 {
+  color: #ff6699;
+  text-align: center;
+}
