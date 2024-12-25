@@ -7,7 +7,7 @@ import Home from "./Pages/Home";           // or wherever you placed it
 import Login from "./Components/Login";    // or your custom login
 import BookingForm from "./Components/BookngForm";
 import BookingsList from "./Components/BookingsList";
-import Profile from "./Components/Profile";
+import ProfileUploader from "./Components/ProfileUploader";
 
 const App = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -32,7 +32,7 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/BookingForm" element={<BookingForm user={currentUser} />} />
         <Route path="/BookingsList" element={<BookingsList user={currentUser} />} />
-        <Route path="/profile" element={<Profile user={currentUser} />} />
+        <Route path="/profile" element={<ProfileUploader user={currentUser} />} />
 
         <Route path="/" element={<Home user={currentUser} />} />
       </Routes>

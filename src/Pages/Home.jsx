@@ -1,7 +1,15 @@
 // Home.jsx
 import React, { useEffect, useState } from "react";
 import { Layout, Spin, Avatar, message, Card, Button, List } from "antd";
-import { doc, getDoc, query, collection, where, getDocs, onSnapshot } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  query,
+  collection,
+  where,
+  getDocs,
+  onSnapshot,
+} from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
 import { auth, db } from "../Components/firebase";
@@ -11,7 +19,8 @@ const { Header, Content } = Layout;
 
 const Home = ({ user }) => {
   const [userProfile, setUserProfile] = useState(null);
-  const [partner, setPartner] = useState(null);
+  const [partner, setPartner] = useState(null);       // We'll store { id, ...data }
+  const [partnerDocId, setPartnerDocId] = useState(""); // Keep the partner doc ID separately
 
   // Bookings state
   const [bookings, setBookings] = useState([]);
@@ -40,18 +49,25 @@ const Home = ({ user }) => {
         }
 
         // 2) Once we have the user’s role, we can find the partner with the opposite role
-        //    But only if the user doc actually has role data
         const userData = userDocSnap.data();
         if (userData?.role) {
           const oppositeRole = userData.role === "bf" ? "gf" : "bf";
 
           // Query for a partner with the opposite role
-          const partnerQuery = query(collection(db, "users"), where("role", "==", oppositeRole));
+          const partnerQuery = query(
+            collection(db, "users"),
+            where("role", "==", oppositeRole)
+          );
           const partnerSnapshot = await getDocs(partnerQuery);
 
           if (!partnerSnapshot.empty) {
             // For simplicity, take the first partner doc
-            setPartner(partnerSnapshot.docs[0].data());
+            const partnerDoc = partnerSnapshot.docs[0];
+            setPartner({
+              ...partnerDoc.data(),
+              id: partnerDoc.id, // We store the doc ID so we can listen to updates
+            });
+            setPartnerDocId(partnerDoc.id); // Also store it in state if you prefer
           } else {
             console.warn(`No partner found with role '${oppositeRole}'.`);
           }
@@ -66,7 +82,7 @@ const Home = ({ user }) => {
 
     fetchData();
 
-    // 3) Listen to the "bookings" collection for the current user
+    // 3) Listen to the "bookings" collection for the current user (real-time)
     const userBookingsRef = collection(db, "bookings");
 
     // Bookings where user is fromUserId
@@ -76,6 +92,7 @@ const Home = ({ user }) => {
         id: doc.id,
         ...doc.data(),
       }));
+      // Merge into the existing array so we don't overwrite older bookings
       setBookings((prev) => [...prev, ...newBookings]);
     });
 
@@ -96,6 +113,26 @@ const Home = ({ user }) => {
     };
   }, [user, navigate]);
 
+  /**
+   * 4) Real-time subscription to the partner doc.
+   *    If the partner updates their photoURL, we'll see it immediately.
+   */
+  useEffect(() => {
+    if (!partnerDocId) return; // If we never found a partner doc, do nothing
+
+    const partnerDocRef = doc(db, "users", partnerDocId);
+    const unsubscribe = onSnapshot(partnerDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setPartner({
+          ...docSnap.data(),
+          id: docSnap.id,
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [partnerDocId]);
+
   // Sort bookings by date/time ascending
   const sortedBookings = bookings.sort((a, b) => {
     const dateA = a.dateTime?.toDate?.() ?? a.dateTime;
@@ -115,7 +152,9 @@ const Home = ({ user }) => {
 
   // If still fetching user doc and partner info
   if (loading) {
-    return <Spin style={{ display: "block", margin: "auto", marginTop: "20%" }} />;
+    return (
+      <Spin style={{ display: "block", margin: "auto", marginTop: "20%" }} />
+    );
   }
 
   return (
@@ -136,7 +175,9 @@ const Home = ({ user }) => {
           ) : (
             <Avatar size="large">U</Avatar>
           )}
-          <h2 style={{ color: "white", margin: 0, fontFamily: "Poppins" }}>
+          <h2
+            style={{ color: "white", margin: 0, fontFamily: "Poppins" }}
+          >
             {userProfile?.displayName || "My Profile"}
           </h2>
         </div>
@@ -159,12 +200,14 @@ const Home = ({ user }) => {
         {partner ? (
           <div style={{ textAlign: "center", marginBottom: 40 }}>
             <Card
+              // 5) We use partner.photoURL, so if the partner updates their image,
+              //    it updates here in real-time via onSnapshot.
               cover={<img alt={partner.name} src={partner.photoURL} />}
-              style={{ 
-                maxWidth: 300, 
-                margin: "0 auto", 
-                backgroundColor: "#ffe6f0", 
-                borderRadius: "8px" 
+              style={{
+                maxWidth: 300,
+                margin: "0 auto",
+                backgroundColor: "#ffe6f0",
+                borderRadius: "8px",
               }}
             >
               <Card.Meta
@@ -190,7 +233,9 @@ const Home = ({ user }) => {
 
         {/* Bookings List */}
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-          <h2 style={{ textAlign: "center", marginBottom: 20 }}>Your Bookings</h2>
+          <h2 style={{ textAlign: "center", marginBottom: 20 }}>
+            Your Bookings
+          </h2>
 
           {bookingsLoading ? (
             <Spin style={{ display: "block", margin: "auto", marginTop: "20%" }} />
@@ -198,7 +243,6 @@ const Home = ({ user }) => {
             <p style={{ textAlign: "center" }}>No bookings found.</p>
           ) : (
             <List
-              // A two-column grid (adjust breakpoints as desired)
               grid={{ gutter: 24, xs: 1, sm: 1, md: 2, lg: 2 }}
               dataSource={sortedBookings}
               renderItem={(booking) => {
@@ -215,9 +259,9 @@ const Home = ({ user }) => {
                           ? `You booked a date with ${booking.targetUserName}`
                           : `${booking.fromUserName} booked a date with you`
                       }
-                      style={{ 
-                        backgroundColor: "#ffe6f0", 
-                        borderRadius: "8px" 
+                      style={{
+                        backgroundColor: "#ffe6f0",
+                        borderRadius: "8px",
                       }}
                     >
                       <p>
@@ -244,9 +288,10 @@ const Home = ({ user }) => {
                       )}
 
                       {/* Payment approval if user is the target and status is pendingPayment */}
-                      {booking.targetUserId === user.uid && booking.status === "pendingPayment" && (
-                        <PaymentApproval booking={booking} />
-                      )}
+                      {booking.targetUserId === user.uid &&
+                        booking.status === "pendingPayment" && (
+                          <PaymentApproval booking={booking} />
+                        )}
                     </Card>
                   </List.Item>
                 );
