@@ -36,7 +36,7 @@ const ProfileUploader = ({ user }) => {
       const public_id = `user_${user.uid}_${timestamp}`; // a naming scheme
 
       // 2b) Request signature from our Node server
-      const sigResponse = await axios.post("server-production-bd29.up.railway.app", {
+      const sigResponse = await axios.post("", {
         folder,
         public_id,
         timestamp,
