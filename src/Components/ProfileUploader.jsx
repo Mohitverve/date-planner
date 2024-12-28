@@ -36,38 +36,34 @@ const ProfileUploader = ({ user }) => {
       const public_id = `user_${user.uid}_${timestamp}`; // a naming scheme
 
       // 2b) Request signature from our Node server
-      const sigResponse = await axios.post("", {
-        folder,
-        public_id,
-        timestamp,
-      });
-
+      const sigResponse = await axios.post(
+        "https://server-production-bd29.up.railway.app/get-signature",
+        {
+          folder: "profile_pics",
+          public_id: `user_${user.uid}_${timestamp}`,
+          timestamp,
+        }
+      );
+      
       const { signature, apiKey, cloudName } = sigResponse.data;
-      if (!signature) {
-        throw new Error("No signature returned from server");
-      }
-
-      // 2c) Create FormData to POST to Cloudinary
+      
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("api_key", apiKey);
       formData.append("timestamp", timestamp);
-      formData.append("folder", folder);
-      formData.append("public_id", public_id);
+      formData.append("folder", "profile_pics");
+      formData.append("public_id", `user_${user.uid}_${timestamp}`);
       formData.append("signature", signature);
-
-      // 2d) Upload directly to Cloudinary
-      const uploadURL = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
-      const cloudinaryRes = await axios.post(uploadURL, formData, {
+      
+      const cloudinaryUploadURL = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+      
+      const cloudinaryRes = await axios.post(cloudinaryUploadURL, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-
-      console.log("Cloudinary response:", cloudinaryRes.data);
-
-      // 2e) Grab the secure_url
+      
       const secureUrl = cloudinaryRes.data.secure_url;
       setImageUrl(secureUrl);
-
+      
       // 2f) [Optional] Store the URL in Firestore user doc
       // For example:
       await updateDoc(doc(db, "users", user.uid), {
