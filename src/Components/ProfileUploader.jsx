@@ -34,7 +34,7 @@ const ProfileUploader = ({ user }) => {
 
       // Request signature from the backend
       const sigResponse = await axios.post(
-        "https://server-production-bd29.up.railway.app/get-signature",
+        "https://server-production-bd29.up.railway.app/",
         { folder, public_id, timestamp }
       );
 
