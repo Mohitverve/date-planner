@@ -7,6 +7,7 @@ const ProfileUploader = ({ user }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [imageUrl, setImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0); // New state for progress
 
   // Handle file selection
   const handleFileChange = (e) => {
@@ -25,6 +26,7 @@ const ProfileUploader = ({ user }) => {
     }
 
     setUploading(true);
+    setUploadProgress(0); // Reset progress
 
     try {
       // Prepare parameters for signature
@@ -34,7 +36,7 @@ const ProfileUploader = ({ user }) => {
 
       // Request signature from the backend
       const sigResponse = await axios.post(
-        "https://server-production-bd29.up.railway.app/",
+        "https://server-production-bd29.up.railway.app/get-signature",
         { folder, public_id, timestamp }
       );
 
@@ -57,6 +59,12 @@ const ProfileUploader = ({ user }) => {
 
       const cloudinaryRes = await axios.post(cloudinaryUploadURL, formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          setUploadProgress(percentCompleted);
+        },
       });
 
       console.log("Cloudinary response:", cloudinaryRes.data);
@@ -84,7 +92,7 @@ const ProfileUploader = ({ user }) => {
       <h3>Upload Profile Picture</h3>
       <input type="file" onChange={handleFileChange} />
       <button onClick={handleUpload} disabled={uploading}>
-        {uploading ? "Uploading..." : "Upload"}
+        {uploading ? `Uploading... ${uploadProgress}%` : "Upload"}
       </button>
       {imageUrl && (
         <div style={{ marginTop: 20 }}>
