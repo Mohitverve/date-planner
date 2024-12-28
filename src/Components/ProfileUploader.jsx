@@ -37,7 +37,8 @@ const ProfileUploader = ({ user }) => {
       // Request signature from the backend
       const sigResponse = await axios.post(
         "https://server-production-bd29.up.railway.app/get-signature",
-        { folder, public_id, timestamp }
+        { folder, public_id, timestamp },
+        { headers: { "Content-Type": "application/json" } }
       );
 
       const { signature, apiKey, cloudName } = sigResponse.data;
@@ -80,8 +81,19 @@ const ProfileUploader = ({ user }) => {
 
       alert("Image uploaded successfully!");
     } catch (error) {
-      console.error("Upload error:", error.response?.data || error.message);
-      alert("Error uploading image. Please try again.");
+      if (error.response) {
+        // Server responded with a status other than 2xx
+        console.error("Server Error:", error.response.data);
+        alert(`Server Error: ${error.response.data.error || error.message}`);
+      } else if (error.request) {
+        // Request was made but no response received
+        console.error("Network Error:", error.message);
+        alert("Network Error: Unable to reach the server.");
+      } else {
+        // Something else caused the error
+        console.error("Error:", error.message);
+        alert(`Error: ${error.message}`);
+      }
     } finally {
       setUploading(false);
     }
