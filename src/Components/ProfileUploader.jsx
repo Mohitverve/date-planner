@@ -7,7 +7,7 @@ const ProfileUploader = ({ user }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [imageUrl, setImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0); // New state for progress
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Handle file selection
   const handleFileChange = (e) => {
@@ -20,13 +20,14 @@ const ProfileUploader = ({ user }) => {
       alert("No user logged in.");
       return;
     }
+
     if (!selectedFile) {
       alert("Please select a file first.");
       return;
     }
 
     setUploading(true);
-    setUploadProgress(0); // Reset progress
+    setUploadProgress(0);
 
     try {
       // Prepare parameters for signature
@@ -34,20 +35,19 @@ const ProfileUploader = ({ user }) => {
       const folder = "profile_pics";
       const public_id = `user_${user.uid}_${timestamp}`;
 
-      // Request signature from the backend
+      // 1. Request signature from your Vercel serverless function
       const sigResponse = await axios.post(
-        "https://server-production-bd29.up.railway.app/get-signature",
+        "/api/getSignature", // Relative path to the serverless function
         { folder, public_id, timestamp },
         { headers: { "Content-Type": "application/json" } }
       );
 
       const { signature, apiKey, cloudName } = sigResponse.data;
-
       if (!signature) {
-        throw new Error("No signature returned from backend");
+        throw new Error("No signature returned from serverless function");
       }
 
-      // Upload image to Cloudinary
+      // 2. Upload the image to Cloudinary
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("api_key", apiKey);
@@ -57,7 +57,6 @@ const ProfileUploader = ({ user }) => {
       formData.append("signature", signature);
 
       const cloudinaryUploadURL = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
-
       const cloudinaryRes = await axios.post(cloudinaryUploadURL, formData, {
         headers: { "Content-Type": "multipart/form-data" },
         onUploadProgress: (progressEvent) => {
@@ -70,27 +69,25 @@ const ProfileUploader = ({ user }) => {
 
       console.log("Cloudinary response:", cloudinaryRes.data);
 
-      // Get the uploaded image URL
+      // 3. Get the uploaded image URL
       const secureUrl = cloudinaryRes.data.secure_url;
       setImageUrl(secureUrl);
 
-      // Update the user's profile in Firestore
+      // 4. Update the user's profile in Firestore (optional)
       await updateDoc(doc(db, "users", user.uid), {
         photoURL: secureUrl,
       });
 
       alert("Image uploaded successfully!");
     } catch (error) {
+      // Handle various error states
       if (error.response) {
-        // Server responded with a status other than 2xx
         console.error("Server Error:", error.response.data);
         alert(`Server Error: ${error.response.data.error || error.message}`);
       } else if (error.request) {
-        // Request was made but no response received
         console.error("Network Error:", error.message);
         alert("Network Error: Unable to reach the server.");
       } else {
-        // Something else caused the error
         console.error("Error:", error.message);
         alert(`Error: ${error.message}`);
       }
